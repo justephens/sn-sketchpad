@@ -12,5 +12,7 @@ document.addEventListener('DOMContentLoaded', function(event) {
 
     ctx = canvas.getContext("2d");
     ctx.lineCap = "round";
+    ctx.lineWidth = "1";
+    ctx.strokeStyle = "rgba(0,0,0,1.0)";
     
 });

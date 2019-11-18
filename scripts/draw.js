@@ -2,9 +2,8 @@
 var pathHistory = new Array();
 var path = null;
 
-function mouseDown() {
-    path = new Path2D();
-    ctx.beginPath();
+function mouseDown(event) {
+    path = "M " + event.offsetX + " " + event.offsetY + " ";
 }
 
 function mouseUp() {
@@ -13,14 +12,11 @@ function mouseUp() {
 }
 
 function mouseMove(event) {
-    // Initialize XY previous positions
-    if( typeof mouseMove.prevX == 'undefined' ) {
-        mouseMove.prevX = 0;
-        mouseMove.prevY = 0;
-    }
-
     if (path != null) {
-        path.lineTo(event.offsetX, event.offsetY);
+        path += "l " + (event.offsetX - mouseMove.prevX) + " " + (event.offsetY - mouseMove.prevY) + " ";
+        
+        ctx.beginPath();
+        ctx.moveTo(mouseMove.prevX, mouseMove.prevY);
         ctx.lineTo(event.offsetX, event.offsetY);
         ctx.stroke();
     }
@@ -29,7 +25,7 @@ function mouseMove(event) {
     mouseMove.prevY = event.offsetY;
 }
 
-function refresh(){
+function refresh() {
     console.log("Refresh");
 
     var ogStyle = ctx.fillStyle;
@@ -38,6 +34,6 @@ function refresh(){
     ctx.fillStyle = ogStyle;
 
     for (i = 0; i < pathHistory.length; i++) {
-        ctx.stroke(pathHistory[i]);
+        ctx.stroke(new Path2D(pathHistory[i]));
     }
 }
