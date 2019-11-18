@@ -1,0 +1,34 @@
+/* Page Style */
+:root {
+    
+    --toolbar-height: 2.5em;
+}
+html {
+    height: 100%;
+    overflow: hidden;
+    /*scrollbar-width: none;*/
+}
+body {
+    margin: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Canvas */
+canvas {
+    position: relative;
+    top: var(--toolbar-height);
+    background-color: #fff;
+    z-index: 0;
+}
+
+/* Toolbar */
+#toolbar {
+    position: fixed;
+    width: 100%;
+    height: var(--toolbar-height);
+    background-color: #eee;
+    border-bottom: 1px solid gray;
+    z-index: 1;
+}

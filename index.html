@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 
 <html>
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <title>Sketchpad</title>
+    <head>
+        <title>Sketchpad</title>
+        <link rel="stylesheet" type="text/css" href="resources/style.css">
+        <script src="scripts/app.js"></script>
+        <script src="scripts/draw.js"></script>
+    </head>
     <body>
-        <canvas id="myCanvas" width="800px" height="600px" style="border:1px solid #d3d3d3;"
-            onmousemove="mouseMove(event)" onmousedown="mouseDown()" onmouseup="mouseUp()" >
-            Browser must support HTML5 canvas
-        </canvas>
+        <div id="toolbar">
 
-
-        <script src="app.js"></script>
+        </div>
+        <canvas id="canvas"></canvas>
     </body>
 </html>
