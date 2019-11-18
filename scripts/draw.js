@@ -1,19 +1,33 @@
+/// Draw.js
+/// 
+/// Contains all the drawing and canvas related functionality of Sketchpad.
 
-var pathHistory = new Array();
-var path = null;
+/// A list of all glyphs in note
+var glyphHistory = new Array(); 
+/// The glyph currently being draw. null if user is not drawing
+var glyph = null;
 
+/// Starts tracking glyph once mouse is pressed on the canvas
 function mouseDown(event) {
-    path = "M " + event.offsetX + " " + event.offsetY + " ";
+    glyph = new Array();
+    glyph.push(event.offsetX);
+    glyph.push(event.offsetY);
 }
 
+/// Ends tracking glyph if mouse is released on canvas
 function mouseUp() {
-    pathHistory.push(path);
-    path = null;
+    if (glyph == null) return;
+
+    glyphHistory.push(simplifyGlyph(glyph));
+    glyph = null;
 }
 
+/// As the glyph is drawn, add change is coordinates to our array, which will
+/// be saved.
 function mouseMove(event) {
-    if (path != null) {
-        path += "l " + (event.offsetX - mouseMove.prevX) + " " + (event.offsetY - mouseMove.prevY) + " ";
+    if (glyph != null) {
+        glyph.push(event.offsetX - mouseMove.prevX);
+        glyph.push(event.offsetY - mouseMove.prevY);
         
         ctx.beginPath();
         ctx.moveTo(mouseMove.prevX, mouseMove.prevY);
@@ -25,6 +39,7 @@ function mouseMove(event) {
     mouseMove.prevY = event.offsetY;
 }
 
+/// Clears the canvas and redraws all glyphs (paths)
 function refresh() {
     console.log("Refresh");
 
@@ -33,7 +48,25 @@ function refresh() {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = ogStyle;
 
-    for (i = 0; i < pathHistory.length; i++) {
-        ctx.stroke(new Path2D(pathHistory[i]));
+    for (i = 0; i < glyphHistory.length; i++) {
+        ctx.stroke(arrayToPath2D(glyphHistory[i]));
     }
+}
+
+/// Takes our arrays of points and converts it to an SVG path, then to a Path2D
+/// which can be drawn
+function arrayToPath2D(arr) {
+    var svg = ""
+    svg += "M " + arr[0] + " " + arr[1] + " ";
+    for (i = 2; i < arr.length-1; i+=2) {
+        svg += "l " + arr[i] + " " + arr[i+1] + " ";
+    }
+    console.log(svg);
+    return new Path2D(svg);
+}
+
+/// Takes an array of points comprising a glyph, and geometrically simplifies
+/// it to save memory.
+function simplifyGlyph(arr) {
+
 }
