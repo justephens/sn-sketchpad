@@ -1,0 +1,4 @@
+# Ignore all of the 'sn-components-api' files NODE imports, except for the one
+# we need for GitHub Pages to work ('dist.js').
+node_modules/sn-components-api/*
+!node_modules/sn-components-api/dist/
