@@ -32,3 +32,29 @@ canvas {
     border-bottom: 1px solid gray;
     z-index: 1;
 }
+
+/* Icons */
+button {
+    position: sticky;
+    float: left;
+    margin: .5em 0em 0em 5em;
+
+    width: 4em;
+    height: 4em;
+    background-color: #ddd;
+    border-radius: 50%;
+    border: none;
+    transition: .1s;
+}
+
+button:hover {
+    background-color: #e5e5e5;
+    transform: scale(1.1);
+    transition: .1s;
+}
+
+button img {
+    width: 80%;
+    height: 80%;
+    -moz-user-select: none;
+}

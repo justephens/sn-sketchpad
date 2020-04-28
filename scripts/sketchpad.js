@@ -1,93 +1,127 @@
-/// Sketchpad.js
+/// sketchpad.js
 /// 
-/// Contains all the drawing and canvas related functionality of Sketchpad.
+/// Manages the content on the Sketchpad. References to "Sketchpad" in
+/// documentation are referring to this managing file.
+
+export var canvas = null;   // Canvas DOM object
+export var ctx = null;      // 2D rendering context
+export var elements = {};   // Holds sketchpad elements, subdivided by tool
+
+// List of tools
+export var tools = [
+    {
+        name:           "Default",
+        tooltip:        "Select and move elements",
+        tool_down:      null,   // Handle mouse down event
+        tool_move:      null,   //    ... mouse move event
+        tool_up:        null,   //    ... mouse up event
+        tool_context:   null,   // Handles right-click context menu
+        sp_init:        null,   // Called with application is initialized
+        sp_activate:    null,   // Called when switching to tool
+        sp_deactivate:  null,   // Called when switching from tool
+        sp_refresh:     null,   // Called when application is re-rendering
+        sp_save:        null,   // Called when application is preparing to save
+    }
+];
+var activeTool = tools[0];
 
 
-
-/// A list of all glyphs in note
-export var glyphHistory = new Array(); 
-/// The glyph currently being draw. null if user is not drawing
-export var glyph = null;
-
-export var canvas = null;
-export var ctx = null;
-
-
-export function InitializeSketchpad() {
-    canvas = document.getElementById("canvas");
+/// Initializes the Sketchpad
+export function initializeSketchpad() {    
+    canvas = document.getElementById("sp_canvas");
     canvas.width = screen.width;
     canvas.height = screen.height * 2;
-    canvas.onmousedown = mouseDown;
-    canvas.onmouseup = mouseUp;
-    canvas.onmousemove = mouseMove;
-
     ctx = canvas.getContext("2d");
-    ctx.lineCap = "round";
-    ctx.lineWidth = "1";
-    ctx.strokeStyle = "rgba(0,0,0,1.0)";
-}
 
+    // Default render style
+    restoreRenderProperties({
+        fillStyle: '#333',
+        lineWidth: 3,
+    });
 
-/// Starts tracking glyph once mouse is pressed on the canvas
-export function mouseDown(event) {
-    glyph = new Array();
-    glyph.push(event.offsetX);
-    glyph.push(event.offsetY);
-}
-
-/// Ends tracking glyph if mouse is released on canvas
-export function mouseUp() {
-    if (glyph == null) return;
-
-    glyphHistory.push(simplifyGlyph(glyph));
-    glyph = null;
-}
-
-/// As the glyph is drawn, add change is coordinates to our array, which will
-/// be saved.
-export function mouseMove(event) {
-    if (glyph != null) {
-        glyph.push(event.offsetX - mouseMove.prevX);
-        glyph.push(event.offsetY - mouseMove.prevY);
-        
-        ctx.beginPath();
-        ctx.moveTo(mouseMove.prevX, mouseMove.prevY);
-        ctx.lineTo(event.offsetX, event.offsetY);
-        ctx.stroke();
+    // Event bindings
+    canvas.onmousedown = function () {
+        if (activeTool.tool_down)
+            activeTool.tool_down(event);
+    }
+    canvas.onmousemove = function () {
+        if (activeTool.tool_move)
+            activeTool.tool_move(event);
+    }
+    canvas.onmouseup = function () {
+        if (activeTool.tool_up)
+            activeTool.tool_up(event);
+    }
+    canvas.oncontextmenu = function () {
+        if (activeTool.tool_context) {
+            activeTool.tool_context(event);
+            return false;
+        }
+        return true;
     }
 
-    mouseMove.prevX = event.offsetX;
-    mouseMove.prevY = event.offsetY;
+    // Button actions
+    document.getElementById("sp_check").onclick = function () {
+        activeTool = tools[0];
+    }
+    document.getElementById("sp_pencil").onclick = function () {
+        activeTool = tools[1];
+    }
+    document.getElementById("sp_eraser").onclick = function () {
+        console.log(elements);
+    }
 }
 
-/// Clears the canvas and redraws all glyphs (paths)
+
+/// Adds the given element to the sketchpad, belonging to the given tool with
+/// the given name
+export function addElement(tool, elem) {
+    var id = 0;
+    if (!elements[tool]) elements[tool] = [];
+    else id = Object.values(elements[tool][elements[tool].length-1])[0]+1;
+    elements[tool].push( { id, elem } );
+
+    console.log("Adding element "+tool+"."+id+" :: "+elem);
+}
+
+/// Returns the element belonging to the given tool with the given ID
+export function getElement(tool, elemID) {
+
+}
+
+/// Returns all the elements belonging to the given tool
+export function getAllElements(tool) {
+
+}
+
+/// Removes the given element
+export function removeElement(tool, elemId) {
+
+}
+
+/// Clears the canvas and refreshes each tool (allows them to rerender)
 export function refresh() {
     console.log("Refresh");
 
-    var ogStyle = ctx.fillStyle;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = ogStyle;
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    for (i = 0; i < glyphHistory.length; i++) {
-        ctx.stroke(arrayToPath2D(glyphHistory[i]));
+    for (var i = 0; i < tools.length; i++)
+        if (tools[i].sp_refresh)
+            tools[i].sp_refresh();
+}
+
+/// Returns an object holding all of the current values of various properties
+/// of the CanvasRenderingContext2D
+export function getRenderProperties() {
+    return {
+        fillStyle:  ctx.fillStyle,
+        lineWidth:  ctx.lineWidth,
     }
 }
 
-/// Takes our arrays of points and converts it to an SVG path, then to a Path2D
-/// which can be drawn
-export function arrayToPath2D(arr) {
-    var svg = ""
-    svg += "M " + arr[0] + " " + arr[1] + " ";
-    for (i = 2; i < arr.length-1; i+=2) {
-        svg += "l " + arr[i] + " " + arr[i+1] + " ";
-    }
-    console.log(svg);
-    return new Path2D(svg);
-}
-
-/// Takes an array of points comprising a glyph, and geometrically simplifies
-/// it to save memory.
-export function simplifyGlyph(arr) {
-
+/// Takes the given render properties object and sets the values of the 
+/// CanvasRenderingContext2D to match those given
+export function restoreRenderProperties(prop) {
+    ctx.fillStyle = prop.fillStyle;
+    ctx.lineWidth = prop.lineWidth;
 }

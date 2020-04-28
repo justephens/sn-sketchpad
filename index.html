@@ -4,12 +4,14 @@
     <head>
         <title>Sketchpad</title>
         <link rel="stylesheet" type="text/css" href="resources/style.css">
+        <script type="module" src="node_modules/sn-components-api/dist/dist.js"></script>
         <script type="module" src="scripts/app.js"></script>
     </head>
     <body>
-        <div id="toolbar">
-
-        </div>
-        <canvas id="canvas"></canvas>
+        <button id="sp_check"><img src="resources/open-iconic/check.svg"></button>
+        <button id="sp_pencil"><img src="resources/open-iconic/pencil.svg"/></button>
+        <button id="sp_text"><img src="resources/open-iconic/text.svg"/></button>
+        <button id="sp_eraser"><img src="resources/open-iconic/trash.svg"/></button>
+        <canvas id="sp_canvas"></canvas>
     </body>
 </html>
