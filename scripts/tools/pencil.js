@@ -7,7 +7,7 @@
 ///     { id, { Path[], RenderProperties } }, ...
 /// }
 
-import * as sp from "../sketchpad.js";
+import { SketchPad } from "../sketchpad.js";
 
 export var tool = {
     name:           "Pencil",
@@ -16,13 +16,21 @@ export var tool = {
     tool_up:        EndTrackGlyph,
     tool_move:      TrackGlyph,
     tool_context:   function () {},
-    sp_refresh:     RenderAll,
+    sp_redraw:      RenderAll,
+    sp_init:        Init,
+    sp_recache:     Recache,
 }
 
+var sp = null;          // Reference to SketchPad
 var glyphPaths = [];    // Local cache of glyphs elements, ready to render
-                        // [ { elementID, Path2D, style }, ... ]
+                        // [ { elemID, path, style }, ... ]
 var glyph = null;       // Glyph currently being draw
 var mode = "";          // Pencil mode. "draw" or "erase"
+
+function Init() {
+    console.log("Init pencil");
+    sp = new SketchPad();
+}
 
 function BeginTrackGlyph(event) {
     if (event.button == 0) {
@@ -60,16 +68,16 @@ function TrackGlyph(event) {
     if (mode == "erase") {
         var did_erase_glyph = false;
         for (var i = 0; i < glyphPaths.length; i++)
-            if (sp.ctx.isPointInStroke(Object.values(glyphPaths[i])[1], event.offsetX, event.offsetY)) {
+            if (sp.ctx.isPointInStroke(glyphPaths[i].path2D, event.offsetX, event.offsetY)) {
                 // Remove from sketchpad element list
-                sp.removeElement(Object.values(glyphPaths[i])[0]);
+                sp.removeElement("glyph", glyphPaths[i].elemID);
 
                 // Remove from local path cache
                 glyphPaths.splice(i, 1);
                 did_erase_glyph = true;
             }
         
-        if (did_erase_glyph) sp.refresh();
+        if (did_erase_glyph) sp.redraw();
     }
 
     // Track position regardless if drawing or not
@@ -83,13 +91,11 @@ function EndTrackGlyph() {
 
         // Add element and render properties to Sketchpad
         var rend_props = sp.getRenderProperties();
-        var id = sp.addElement(
-            tool.name,
-            {"glyph": glyph, "rend_props": rend_props});
+        var id = sp.addElement("glyph", {"data": glyph, "style": rend_props});
 
         // Add element to local cache
         var path = arrayToPath2D(glyph)
-        glyphPaths.push( { id, path, rend_props } );
+        glyphPaths.push({ elemID: id, path2D: path, style: rend_props } );
         
         glyph = null;
         mode = "";
@@ -101,9 +107,22 @@ function EndTrackGlyph() {
 function RenderAll() {
     if (typeof glyphPaths !== 'undefined') {
         for (var i = 0; i < glyphPaths.length; i++) {
-            sp.restoreRenderProperties(Object.values(glyphPaths[i])[2]);
-            sp.ctx.stroke(Object.values(glyphPaths[i])[1]);
+            sp.restoreRenderProperties(glyphPaths[i].style);
+            sp.ctx.stroke(glyphPaths[i].path2D);
         }
+    }
+}
+
+function Recache() {
+    glyphPaths = [];
+    var glyphs = sp.getAllElements("glyph");
+
+    for (var i = 0; i < glyphs.length; i++) {
+        glyphPaths.push({
+            elemID: glyphs[i].id,
+            path2D: arrayToPath2D(glyphs[i].elem.data),
+            style: glyphs[i].elem.style
+        });
     }
 }
 
