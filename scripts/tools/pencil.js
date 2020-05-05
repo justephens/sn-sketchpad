@@ -3,7 +3,7 @@
 /// Implements the pencil tool, which allows users to sketch and erase glyphs.
 /// 
 /// Layout of elements[]:
-/// "Pencil": {
+/// "glyph": {
 ///     { id, { Path[], RenderProperties } }, ...
 /// }
 

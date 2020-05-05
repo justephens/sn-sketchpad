@@ -23,37 +23,45 @@ canvas {
     z-index: 0;
 }
 
-/* Toolbar */
-#toolbar {
-    position: fixed;
-    width: 100%;
-    height: var(--toolbar-height);
-    background-color: #eee;
-    border-bottom: 1px solid gray;
-    z-index: 1;
+/* Text Boxes */
+div.textbox {
+    position: absolute;
+    background-color: #fff;
+    border: 0px dashed #eee;
+    z-index: 2;
+}
+
+div.textbox:active {
+    border: 1px dashed #eee;
 }
 
 /* Icons */
-button {
-    position: sticky;
+#sp_tool_btn_tray {
+    position: fixed;
     float: left;
-    margin: .5em 0em 0em 5em;
-
-    width: 4em;
-    height: 4em;
+    top: 50%;
+    width: 48px;
+    height: auto;
+    margin: 0;
+    transform: translateY(-50%);
+    z-index: 100000;
+}
+.sn_tool_btn {
+    width: 48px;
+    height: 48px;
     background-color: #ddd;
     border-radius: 50%;
     border: none;
     transition: .1s;
 }
 
-button:hover {
+.sn_tool_btn:hover {
     background-color: #e5e5e5;
     transform: scale(1.1);
     transition: .1s;
 }
 
-button img {
+.sn_tool_btn img {
     width: 80%;
     height: 80%;
     -moz-user-select: none;

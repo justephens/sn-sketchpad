@@ -4,12 +4,15 @@
 /// documentation are referring to this managing file.
 
 import { tool as pencil } from "./tools/pencil.js";
+import { tool as text } from "./tools/text.js";
 document.addEventListener('DOMContentLoaded', function(event) {
     var sp = new SketchPad();
     sp.initializeSketchpad();
     sp.tools.push(pencil);
+    sp.tools.push(text);
     sp.activeTool = sp.tools[0];
     pencil.sp_init();
+    text.sp_init();
 });
 
 
@@ -92,12 +95,21 @@ export class SketchPad {
         // UI callbacks
         document.getElementById("sp_check").onclick = function () {
             sp.activeTool = sp.tools[0];
+
+            document.getElementById("text_toolbar").style.display = 'none';
         }
         document.getElementById("sp_pencil").onclick = function () {
             sp.activeTool = sp.tools[1];
+
+            document.getElementById("text_toolbar").style.display = 'none';
+        }
+        document.getElementById("sp_text").onclick = function () {
+            sp.activeTool = sp.tools[2];
+            document.getElementById("text_toolbar").style.display = 'block';
         }
         document.getElementById("sp_eraser").onclick = function () {
             console.log(sp.elements);
+            document.getElementById("text_toolbar").style.display = 'none';
         }
     }
 

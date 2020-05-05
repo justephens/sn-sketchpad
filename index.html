@@ -4,14 +4,36 @@
     <head>
         <title>Sketchpad</title>
         <link rel="stylesheet" type="text/css" href="resources/style.css">
+        <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+        <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
         <script type="module" src="node_modules/sn-components-api/dist/dist.js"></script>
         <script type="module" src="scripts/sketchpad.js"></script>
     </head>
     <body>
-        <button id="sp_check"><img src="resources/open-iconic/check.svg"></button>
-        <button id="sp_pencil"><img src="resources/open-iconic/pencil.svg"/></button>
-        <button id="sp_text"><img src="resources/open-iconic/text.svg"/></button>
-        <button id="sp_eraser"><img src="resources/open-iconic/trash.svg"/></button>
-        <canvas id="sp_canvas"></canvas>
+        <div id="sp_tool_btn_tray">
+            <button class="sn_tool_btn" id="sp_check"><img src="resources/open-iconic/check.svg"></button>
+            <button class="sn_tool_btn" id="sp_pencil"><img src="resources/open-iconic/pencil.svg"/></button>
+            <button class="sn_tool_btn" id="sp_text"><img src="resources/open-iconic/text.svg"/></button>
+            <button class="sn_tool_btn" id="sp_eraser"><img src="resources/open-iconic/trash.svg"/></button>
+        </div>
+
+        <div id="sp_contents">
+            <div id="text_toolbar">
+                <!-- Add font size dropdown -->
+                <select class="ql-size">
+                    <option value="small"></option>
+                    <!-- Note a missing, thus falsy value, is used to reset to default -->
+                    <option selected></option>
+                    <option value="large"></option>
+                    <option value="huge"></option>
+                </select>
+                <!-- Add a bold button -->
+                <button class="ql-bold"></button>
+                <!-- Add subscript and superscript buttons -->
+                <button class="ql-script" value="sub"></button>
+                <button class="ql-script" value="super"></button>
+            </div>
+            <canvas id="sp_canvas"></canvas>
+        </div>
     </body>
 </html>
