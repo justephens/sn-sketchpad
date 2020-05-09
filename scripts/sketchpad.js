@@ -34,13 +34,9 @@ export class SketchPad {
         this.canvas = document.getElementById("sp-canvas");
         this.ctx = this.canvas.getContext("2d");
 
-        // Pulls object into this scope so it can be referenced in the
-        // functions below
-        var sp = this;
-
         // Standard Notes callbacks
         this.componentManager.streamContextItem(function (item) {
-            sp.snStreamContextItem(item);
+            SketchPad.snStreamContextItem(item);
         });
 
         // Input callbacks
@@ -48,33 +44,37 @@ export class SketchPad {
             console.log("Canvas captured MouseDown");
         };
 
-        // Create temporary TextElement to initialize Quill toolbar
+        // Create startomg TextElement
         let e = new TextElement([32, 32, 400, 200]);
-        e.destroy();
     }
 
 
     /// Called every time the note is updated
-    snStreamContextItem(note) {
+    static snStreamContextItem(note) {
+        let sp = new SketchPad();
+
         // Ignore metadata updates right now
         if (note.isMetadataUpdate) return;
 
         console.log("Update note:");
         console.log(note);
 
-        this.note = note;
+        sp.note = note;
 
         // Read in elements from note
-        let objs = JSON.parse(this.note.content.text);
+        if (sp.note.content.text.length > 2)
+            SketchPad.importNoteJSON(sp.note.content.text);
     }
 
     /// Call this to save the note
-    snSaveNote() {
-        if (!this.note) return;
+    static snSaveNote() {
+        let sp = new SketchPad();
+
+        if (!sp.note) return;
         console.log("Saving Note");
 
-        this.note.content.text = this.exportElementJSON();
-        this.componentManager.saveItemWithPresave(this.note, () => {
+        sp.note.content.text = SketchPad.exportNoteJSON();
+        sp.componentManager.saveItemWithPresave(sp.note, () => {
             // On complete?
         });
     }
@@ -84,8 +84,6 @@ export class SketchPad {
     static addElement(elem) {
         let sp = new SketchPad();
         sp.elements.push(elem);
-        
-        sp.snSaveNote();
     }
 
     /// Removes the given element
@@ -100,8 +98,6 @@ export class SketchPad {
                 break;
             }
         }
-
-        sp.snSaveNote();
     }
 
     /// Returns the element belonging to the given group with the given ID
@@ -116,30 +112,54 @@ export class SketchPad {
         }
     }
 
+    /// Destroys all elements in the SketchPad
+    static clear() {
+        let sp = new SketchPad();
 
-    /// Returns a string containing JSON of all the elements
-    exportNoteJSON() {
-        let objs = {
-            Element: [],
-            TextElement: [],
-        };
-        for (var i = 0; i < this.elements.length; i++) {
-            if (this.elements[i] instanceof TextElement) {
-                objs["TextElement"].push(this.elements[i]);
-            } else if (this.elements[i] instanceof Element) {
-                objs["Element"].push(this.elements[i]);
-            }
+        for (let i = 0; i < sp.elements.length; i++) {
+            sp.elements[i].destroy();
         }
-
-        console.log(objs);
-        return JSON.stringify(obj);
+        sp.elements = [];
     }
 
-    importNoteJSON(objs) {
-        for (var i = 0; i < objs["TextElement"].length; i++) {
-            let obj = {};
-            Object.assign(obj, TextElement.prototype);
-            addElement
+
+    /// Returns a JSON string containing all the elements in the SketchPad.
+    /// Elements are exported in groups according to their Class type.
+    static exportNoteJSON() {
+        let sp = new SketchPad();
+        let objs = {};
+
+        // Export each element, grouped by class
+        for (let i = 0; i < sp.elements.length; i++) {
+            // Get class name
+            let class_name = sp.elements[i].constructor.name;
+
+            // Add to array group, creating if not existent
+            if (!objs[class_name]) objs[class_name] = [];
+            objs[class_name].push(sp.elements[i].exportObject());
+        }
+
+        return JSON.stringify(objs);
+    }
+
+    /// Reads a JSON string, building elements into the SketchPad.
+    /// NOTE: Clears SketchPad
+    static importNoteJSON(objs_str) {
+        let sp = new SketchPad();
+        SketchPad.clear()
+        
+
+        let objs = JSON.parse(objs_str);
+
+        for (let i = 0; i < Object.keys(objs).length; i++) {
+            let class_name = Object.keys(objs)[i];
+            
+            // For all elements in each class/group, run the import function
+            // for that class
+            let elems = objs[class_name];
+            for (let j = 0; j < elems.length; j++) {
+                eval(class_name+".importObject(elems[j])");
+            }
         }
     }
 }
@@ -169,19 +189,14 @@ export class Element {
             }
         }
 
-        // Get next ID in sequence, generate an element
+        // Get next ID in sequence, generate an element into the dom tree
         let elem = document.createElement(elem_type);
-        elem.style.left = this.x + "px";
-        elem.style.top = this.y + "px";
-        elem.style.width = this.w + "px";
-        elem.style.height = this.h + "px";
         elem.id = "elem_" + this.id;
         elem.className = "sp-element";
-
-        // Insert element into the DOM tree
         document.getElementById("sp-contents").prepend(elem);
 
-        // Bind event handler methods to the DOM triggers
+        // Update the position and bind event handler methods to triggers
+        this.updateDomStyle();
         this.bindEventHandlers();
 
         SketchPad.addElement(this);
@@ -195,43 +210,55 @@ export class Element {
 
     /// Create an Element from an export
     static importObject(obj) {
-        return new Element(obj[box], obj[elem]);
+        return new Element(obj["box"], obj["tag"]);
     }
+
     /// Export this Element to an object, which can be JSONified and saved.
     /// Contains only the data necessary to recreate the core Element; derived
     /// classes should append their own exported data
     exportObject() {
         return {
-            elem: this.domElement().tagName.toLowerCase(),
+            tag: this.domElement().tagName.toLowerCase(),
             box: [
                 this.x, this.y, this.w, this.h
             ]
         };
     }
 
+
     /// Re-binds the event handler functions. Calling this method in the
-    /// constructor of inherited class will reset event handler functions,
-    /// effectively "overriding" them.
+    /// constructor of inherited class will set to child class's handler
+    /// functions, effectively "overriding" the methods.
     bindEventHandlers() {
         let elem = document.getElementById("elem_"+this.id);
         elem.onmouseenter = this.onmouseenter;
         elem.onmouseleave = this.onmouseleave;
         elem.onmousedown = this.onmousedown;
         elem.onmousemove = this.onmousemove;
+        document.onmousemove = this.ondocmousemove;
         elem.onmouseup = this.onmouseup;
     }
 
     /// Returns the DOM Element represented by this Element object. Alias for
-    domElement = () => {
+    domElement() {
         return document.getElementById("elem_" + this.id);
     }
+
+    /// Updates the position and size of the element
+    updateDomStyle() {
+        let elem = this.domElement();
+        elem.style.left = this.x + "px";
+        elem.style.top = this.y + "px";
+        elem.style.width = this.w + "px";
+        elem.style.height = this.h + "px";
+    }
+
 
     //////////////////////
     /// Event Handlers ///
     //////////////////////
     /// Must use arrow functions for `this` to reference this Element object
     /// instead of the DOM element.
-
     onmouseenter = () => {
         let elem = this.domElement();
         elem.style.border = "1px solid #CCC";
@@ -242,7 +269,28 @@ export class Element {
         elem.style.border = "1px hidden"; 
     }
 
-    onmousedown = event => {
+    // Handles mouse movement within the element (to update cursor appearance)
+    onmousemove = (event) => {
+        if (event.offsetX <= 4 || this.width - event.offsetX <= 4 ||
+            event.offsetY <= 4 || this.height - event.offsetY <= 4) {
+            this.domElement().style.cursor = "grab";
+            this.cursor_grab = true;
+        } else {
+            this.domElement().style.cursor = "auto";
+            this.cursor_grab = false;
+        }
+    }
+
+    // Handles mouse movement outside the element (to track while dragging)
+    ondocmousemove = (event) => {
+        if (this.isgrabbed) {
+            this.x += event.movementX;
+            this.y += event.movementY;
+            this.updateDomStyle();
+        }
+    }
+
+    onmousedown = (event) => {
         // If mouse click was in the the unoccupied space within the <div>,
         // or on child elements within the box (i.e. <p>, <span>, etc.)
         if (event.target.tagName == "DIV") {
@@ -250,11 +298,24 @@ export class Element {
         } else {
             event.stopPropagation();
         }
+
+        if (this.cursor_grab) {
+            this.isgrabbed = true;
+        }
     };
+
+    onmouseup = (event) => {
+        // If this element was being dragged, save note
+        if (this.isgrabbed) SketchPad.snSaveNote();
+        
+        this.isgrabbed = false;
+    }
 }
 
 /// Textbox element
 export class TextElement extends Element {
+    static currentQuill;
+
     constructor(box, text="") {
         // Create div for text
         super(box);
@@ -262,39 +323,62 @@ export class TextElement extends Element {
 
         this.quill = new Quill('#elem_'+this.id, {
             modules: {
-            toolbar: '#toolbox-text'
+                toolbar: '#toolbox-text'
             },
-            placeholder: 'Add text here ...',
             theme: 'snow'
         });
+        this.quill.on('text-change', SketchPad.snSaveNote);
+        this.activateQuill();
     }
 
-    /*onmouseenter = () => {
-        let elem = this.domElement();
-        elem.style.border = "1px solid #CCC";
-        this.dragtimer = setTimeout(this.createDragBar, 1500);
-    };
-
-    onmouseleave = () => {
-        let elem = this.domElement();
-        elem.style.border = "1px hidden";
-
-        let dragbar = elem.getElementById("elem_" + this.id + ".drag");
-        if (dragbar) elem.removeChild(dragbar);
-
-        clearTimeout(this.dragtimer);
+    /// Delete the element. Removes from DOM tree and SketchPad
+    destroy() {
+        if (TextElement.currentQuill == this.quill) TextElement.currentQuill = null;
+        delete this.quill;
+        super.destroy();
     }
 
-    createDragBar = () => {
-        let elem = document.createElement("div");
-        elem.style.backgroundColor = "#000";
-        elem.style.width = "100%";
-        elem.style.height = "8px";
-        elem.style.top = "-8px";
-        elem.style.position = "absolute";
-        elem.id = "elem_" + this.id + ".drag";
+    /// Create an Element from an export
+    static importObject(obj) {
+        let te = new TextElement(obj["box"], obj["tag"]);
+        te.quill.setContents(obj["quill"]);
+        return te;
+    }
 
-        // Insert element into the DOM tree
-        this.domElement().prepend(elem);
-    }*/
+    /// Export this Element to an object, which can be JSONified and saved.
+    /// Contains only the data necessary to recreate the core Element; derived
+    /// classes should append their own exported data
+    exportObject() {
+        let obj = super.exportObject();
+        obj["quill"] = this.quill.getContents();
+        return obj;
+    }
+
+
+    /// Returns true if this TextElement is active
+    isActiveQuill() {
+        return TextElement.currentQuill == this.quill;
+    }
+
+    /// When called, makes this Quill instance active. Sets currentQuill to
+    /// this editor and currentFormat to the format of the text.
+    activateQuill() {
+        TextElement.currentQuill = this.quill;
+    }
+
+    /// Shorthand used to change the format of text in the active editor
+    static setFormatOption(name, value) {
+        TextElement.currentQuill.format(name, value);
+    }
+
+    /// Toggles the given binary format value.
+    static toggleFormatOption(name, states=[true,false]) {
+        if (!TextElement.currentQuill) return;
+
+        if (TextElement.currentQuill.getFormat()[name] == states[0]) {
+            TextElement.currentQuill.format("bold", states[1]);
+        } else {
+            TextElement.currentQuill.format("bold", states[0]);
+        }
+    }
 }

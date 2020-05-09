@@ -38,7 +38,12 @@ body {
 
 #toolbar div {
     float: left;
-    width: 300px;
+    width: auto;
+}
+
+#toolbar .util {
+    float: right;
+    height: 100%;
 }
 
 /* Element */

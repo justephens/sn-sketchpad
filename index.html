@@ -27,17 +27,29 @@
 
             <div id="toolbox-text">
                 <!-- Font size dropdown -->
-                <select class="ql-size">
-                    <option value="small"></option>
-                    <option selected></option>
-                    <option value="large"></option>
-                    <option value="huge"></option>
+                <select class="ql-font">
                 </select>
-                <!-- Bold button -->
-                <button class="ql-bold"></button>
+                <select class="ql-header">
+                    <option value="1"></option>
+                    <option value="2"></option>
+                    <option value="3"></option>
+                    <option selected></option>
+                </select>
+
+                <select class="ql-color"></select>
+                <select class="ql-background"></select>
+                <button type="button" class="ql-list" value="bullet"></button>
+                <button type="button" class="ql-list" value="ordered"></button>
+
+                <!-- Basic toggle stylings -->
+                <button id="tb-bold" class="ql-bold"></button>
+                <button id="tb-italic" class="ql-italic"></button>
+                <button id="tb-underline" class="ql-underline"></button>
+                <button id="tb-strike" class="ql-strike"></button>
+
                 <!-- Subscript and superscript buttons -->
-                <button class="ql-script" value="sub"></button>
-                <button class="ql-script" value="super"></button>
+                <button id="tb-subscript" class="ql-script" value="sub"></button>
+                <button id="tb-superscript" class="ql-script" value="super"></button>
             </div>
 
             <div id="toolbox-draw">
@@ -45,6 +57,9 @@
                 <button>Erase</button>
                 <input type="range" min="1" max="128" value="4">
             </div>
+
+            <button id="util-export" class="util">Export</button>
+            <button id="util-import" class="util">Import</button>
         </div>
 
         <!-- Holds contents of document -->
