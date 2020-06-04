@@ -3,6 +3,7 @@
 /// Manages the content on the Sketchpad. References to "Sketchpad" in
 /// documentation are referring to this managing file.
 
+import {Interface} from "./interface.js";
 
 document.addEventListener('DOMContentLoaded', function(event) {
     var sp = new SketchPad();
@@ -21,8 +22,12 @@ export class SketchPad {
         }
         this.constructor.instance = this;
 
+        // Background Canvas
         this.canvas = null;         // Canvas DOM object
         this.ctx = null;            // 2D rendering context
+        this.glyph = null;          // Holds glyph while user is drawing
+
+        // Elements
         this.elements = [];         // All the sketchpad elements
 
         // Standard Notes component interface
@@ -32,6 +37,8 @@ export class SketchPad {
     /// Initializes the Sketchpad
     initializeSketchpad() {
         this.canvas = document.getElementById("sp-canvas");
+        this.canvas.width = this.canvas.offsetWidth;
+        this.canvas.height = this.canvas.offsetHeight;
         this.ctx = this.canvas.getContext("2d");
 
         // Standard Notes callbacks
@@ -39,10 +46,27 @@ export class SketchPad {
             SketchPad.snStreamContextItem(item);
         });
 
-        // Input callbacks
-        this.canvas.onmousedown = function () {
-            console.log("Canvas captured MouseDown");
+        // Draw glyphs to canvas, transferring to a GlyphElement on mouseup
+        this.canvas.onmousedown = (event) => {
+            if (Interface.active_tool == "pen") {
+                // Move canvas to top to allow drawing anywhere
+                this.canvas.style.zIndex = 999999;
+                GlyphBuilder.beginTrackGlyph(event);
+            }
         };
+        this.canvas.onmousemove = (event) => {
+            if (Interface.active_tool == "pen") {
+                GlyphBuilder.trackGlyph(event);
+            }
+        }
+        this.canvas.onmouseup = (event) => {
+            if (Interface.active_tool == "pen") {
+                // Move canvas back down
+                this.canvas.style.zIndex = 0;
+                GlyphBuilder.endTrackGlyph();
+                GlyphBuilder.getGlyphElement();
+            }
+        }
 
         // Create startomg TextElement
         let e = new TextElement([32, 32, 400, 200]);
@@ -165,7 +189,7 @@ export class SketchPad {
 }
 
 /// Represents an Element on the Sketchpad. When created, each Element will
-/// create an HTML element in the DOM tree at the specified screen location, and
+/// create a HTML element in the DOM tree at the specified screen location, and
 /// auto-assigns a sequential ID.
 export class Element {
     static id_counter = 0;
@@ -227,8 +251,8 @@ export class Element {
 
 
     /// Re-binds the event handler functions. Calling this method in the
-    /// constructor of inherited class will set to child class's handler
-    /// functions, effectively "overriding" the methods.
+    /// constructor of inherited class will set the child class's handlers to
+    /// the locally defined methods, effectively forcing "override" behavior.
     bindEventHandlers() {
         let elem = document.getElementById("elem_"+this.id);
         elem.onmouseenter = this.onmouseenter;
@@ -381,4 +405,92 @@ export class TextElement extends Element {
             TextElement.currentQuill.format("bold", states[0]);
         }
     }
+}
+
+/// Glyph element; Holds a drawn glyph
+/// TODO: Need to figure out how to insert function <svg> elements into the DOM
+export class GlyphElement extends Element {
+
+    constructor(box, pathStr, style) {
+        // Create div for glyph
+        super(box);
+        this.bindEventHandlers();
+
+        // Create <svg> element
+        let svg = document.createElement("svg");
+        //svg.setAttribute("viewbox", "0 0 1000 1000");
+        //svg.setAttribute("xmlns", "https://www.w3.org/2000/svg");
+
+        // Create a <path> element
+        let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathStr);
+        path.style.stroke = "#333";
+        path.style.fill = "none"
+
+        // Add <path> to <svg>, then <svg> to <div>
+        svg.prepend(path);
+        this.domElement().prepend(svg);
+    }
+}
+
+/// A utility class used to track the movement of the pencil tool when a Glyph
+/// is initially being drawn, drawing the movement to `#sp-canvas`. A 
+/// GlyphElement can be retrieved once drawing is complete.
+class GlyphBuilder {
+    static isTracking = false;
+
+    /// Called whenever a drawing tool is "placed" onto the Sketchpad
+    static beginTrackGlyph(event) {
+        console.log("Init GlyphBuilder");
+        let sp = new SketchPad();
+
+        // Store starting coordinates
+        GlyphBuilder.glyph = new Array();
+        GlyphBuilder.glyph.push(event.offsetX);
+        GlyphBuilder.glyph.push(event.offsetY);
+
+        // Set draw style
+        sp.ctx.lineWidth = 10;
+        sp.ctx.lineCap = "round";
+        sp.ctx.strokeStyle = '#333';
+        
+        // Draw starting point, set tracking flag to true
+        sp.ctx.moveTo(event.offsetX, event.offsetY);
+        sp.ctx.lineTo(event.offsetX, event.offsetY);
+        sp.ctx.stroke();
+        GlyphBuilder.isTracking = true;
+    }
+
+    /// Called when a drawing tool moves. Tracks movement
+    static trackGlyph(event) {
+        if (!GlyphBuilder.isTracking) return;
+        let sp = new SketchPad();
+
+        // Add deltas to glyph array
+        GlyphBuilder.glyph.push(event.movementX);
+        GlyphBuilder.glyph.push(event.movementY);
+
+        // Draw segment to new point
+        sp.ctx.lineTo(event.offsetX, event.offsetY);
+        sp.ctx.stroke();
+    }
+
+    /// Called whenever a drawing tool is "lifted" from the Sketchpad
+    static endTrackGlyph() {
+        GlyphBuilder.isTracking = false;
+    }
+
+    /// Returns a GlyphElement and clears the `#sp-canvas`
+    static getGlyphElement() {
+        // Build a string representation of the path for use in <svg>
+        var pstr = "";
+        pstr += "M 0 0 ";
+        for (var i=2; i<GlyphBuilder.glyph.length-1; i+=2) {
+            pstr += "l " + GlyphBuilder.glyph[i] + " " + GlyphBuilder.glyph[i+1] + " ";
+        }
+
+        let glyphElem = new GlyphElement({}, pstr);
+        return glyphElem;
+    }
+
 }

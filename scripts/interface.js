@@ -20,6 +20,15 @@ document.addEventListener("DOMContentLoaded", function(event) {
     tb_selector.onchange = function(event) {
         tb_text.style.display = (event.target.value == "text") ? "block" : "none";
         tb_draw.style.display = (event.target.value == "draw") ? "block" : "none";
+        Interface.toolbox = event.target.value;
+    }
+
+    // Draw toolbox buttons
+    document.getElementById("tb-pen").onclick = function(event) {
+        Interface.active_tool = "pen";
+    }
+    document.getElementById("tb-erase").onclick = function(event) {
+        Interface.active_tool = "erase";
     }
 
     // Utility Functions
@@ -44,3 +53,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
     // Bind toolbar buttons to TextElement methods
     //document.getElementById("tb-bold").onclick = TextElement.toggleFormatOption("bold");
 });
+
+/// A static class that can be used in other portions of the codebase to
+/// interact with the user interface.
+export class Interface {
+
+    static active_toolbox = "text";
+    static active_tool = null;
+
+}
