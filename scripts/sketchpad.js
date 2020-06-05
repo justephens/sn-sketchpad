@@ -63,12 +63,17 @@ export class SketchPad {
             if (Interface.active_tool == "pen") {
                 // Move canvas back down
                 this.canvas.style.zIndex = 0;
+
+                // Create GlyphElement from tracked path, clear canvas
                 GlyphBuilder.endTrackGlyph();
-                GlyphBuilder.getGlyphElement();
+                GlyphBuilder.createGlyphElement();
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                SketchPad.snSaveNote();
             }
         }
 
-        // Create startomg TextElement
+        // Create starting TextElement
         let e = new TextElement([32, 32, 400, 200]);
     }
 
@@ -195,6 +200,8 @@ export class Element {
     static id_counter = 0;
 
     constructor(box, elem_type="div") {
+
+        /// Member variables
         this.id = Element.id_counter++;
         this.x = 24;
         this.y = 8;
@@ -278,19 +285,63 @@ export class Element {
     }
 
 
+    ////////////////////////
+    /// UI State Methods ///
+    ////////////////////////
+    /// Highlight the borders of this element
+    uiBorderHighlight() {
+        let elem = this.domElement();
+        let borderWidthMinor = 1;
+
+        // Add border, shift positions and size to compensate
+        elem.style.border = borderWidthMinor + "px solid #CCC";
+
+        elem.style.left = (this.x-borderWidthMinor) + "px";
+        elem.style.top = (this.y-borderWidthMinor) + "px";
+        elem.style.width = (this.w-2*borderWidthMinor) + "px";
+        elem.style.height = (this.h-2*borderWidthMinor) + "px";
+    }
+    
+    /// When this element is selected. Draws minor side borders with a large
+    /// drag bar on top
+    uiSelected() {
+        let elem = this.domElement();
+        let borderWidthMinor = 2;
+        let borderWidthMajor = 16;
+
+        // Add border, shift positions and size to compensate
+        elem.style.border = borderWidthMinor + "px solid #CCC";
+        elem.style.borderTop = borderWidthMajor + "px solid #000";
+
+        elem.style.left = (this.x-borderWidthMinor) + "px";
+        elem.style.top = (this.y-borderWidthMajor-borderWidthMinor) + "px";
+        elem.style.width = (this.w-2*borderWidthMinor) + "px";
+        elem.style.height = (this.h-borderWidthMajor-borderWidthMinor) + "px";
+    }
+
+    /// Plain, no-border appearance
+    uiDefault() {
+        let elem = this.domElement();
+        let borderWidthMinor = 1;
+        let borderWidthMajor = 8;
+
+        // Remove border, reset to original size and position
+        this.updateDomStyle();
+        elem.style.border = "none";
+    }
+
+
     //////////////////////
     /// Event Handlers ///
     //////////////////////
     /// Must use arrow functions for `this` to reference this Element object
     /// instead of the DOM element.
     onmouseenter = () => {
-        let elem = this.domElement();
-        elem.style.border = "1px solid #CCC";
+        this.uiBorderHighlight();
     };
 
     onmouseleave = () => {
-        let elem = this.domElement();
-        elem.style.border = "1px hidden"; 
+        this.uiDefault();
     }
 
     // Handles mouse movement within the element (to update cursor appearance)
@@ -307,7 +358,7 @@ export class Element {
 
     // Handles mouse movement outside the element (to track while dragging)
     ondocmousemove = (event) => {
-        if (this.isgrabbed) {
+        if (this.is_grabbed) {
             this.x += event.movementX;
             this.y += event.movementY;
             this.updateDomStyle();
@@ -315,24 +366,26 @@ export class Element {
     }
 
     onmousedown = (event) => {
-        // If mouse click was in the the unoccupied space within the <div>,
-        // or on child elements within the box (i.e. <p>, <span>, etc.)
-        if (event.target.tagName == "DIV") {
+        // Check if mouse click was in the unoccupied space within element
+        // ("DIV"), or on child elements within the box (i.e. <p>, <span>, etc.)
+        /*if (event.target.tagName == "DIV") {
             console.log("Click fell through");
         } else {
             event.stopPropagation();
-        }
+        }*/
+
+        this.uiSelected();
 
         if (this.cursor_grab) {
-            this.isgrabbed = true;
+            this.is_grabbed = true;
         }
     };
 
     onmouseup = (event) => {
         // If this element was being dragged, save note
-        if (this.isgrabbed) SketchPad.snSaveNote();
+        if (this.is_grabbed) SketchPad.snSaveNote();
         
-        this.isgrabbed = false;
+        this.is_grabbed = false;
     }
 }
 
@@ -351,27 +404,21 @@ export class TextElement extends Element {
             },
             theme: 'snow'
         });
+        this.quill.setContents(text);
         this.quill.on('text-change', SketchPad.snSaveNote);
         this.activateQuill();
     }
 
-    /// Delete the element. Removes from DOM tree and SketchPad
     destroy() {
         if (TextElement.currentQuill == this.quill) TextElement.currentQuill = null;
         delete this.quill;
         super.destroy();
     }
 
-    /// Create an Element from an export
     static importObject(obj) {
-        let te = new TextElement(obj["box"], obj["tag"]);
-        te.quill.setContents(obj["quill"]);
-        return te;
+        return new TextElement(obj["box"], obj["quill"]);
     }
 
-    /// Export this Element to an object, which can be JSONified and saved.
-    /// Contains only the data necessary to recreate the core Element; derived
-    /// classes should append their own exported data
     exportObject() {
         let obj = super.exportObject();
         obj["quill"] = this.quill.getContents();
@@ -379,6 +426,9 @@ export class TextElement extends Element {
     }
 
 
+    /////////////////////
+    /// Quill-Related ///
+    /////////////////////
     /// Returns true if this TextElement is active
     isActiveQuill() {
         return TextElement.currentQuill == this.quill;
@@ -395,7 +445,7 @@ export class TextElement extends Element {
         TextElement.currentQuill.format(name, value);
     }
 
-    /// Toggles the given binary format value.
+    /// Toggles the given binary format option in Quill
     static toggleFormatOption(name, states=[true,false]) {
         if (!TextElement.currentQuill) return;
 
@@ -417,9 +467,10 @@ export class GlyphElement extends Element {
         this.bindEventHandlers();
 
         // Create <svg> element
-        let svg = document.createElement("svg");
-        //svg.setAttribute("viewbox", "0 0 1000 1000");
-        //svg.setAttribute("xmlns", "https://www.w3.org/2000/svg");
+        let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", "100%");
+        svg.setAttribute("version", "1.1");
 
         // Create a <path> element
         let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -428,8 +479,18 @@ export class GlyphElement extends Element {
         path.style.fill = "none"
 
         // Add <path> to <svg>, then <svg> to <div>
-        svg.prepend(path);
-        this.domElement().prepend(svg);
+        svg.append(path);
+        this.domElement().append(svg);
+    }
+
+    static importObject(obj) {
+        return new GlyphElement(obj["box"], obj["svg-path"]);
+    }
+
+    exportObject() {
+        let obj = super.exportObject();
+        obj["svg-path"] = this.domElement().children[0].children[0].getAttribute("d");
+        return obj;
     }
 }
 
@@ -444,8 +505,17 @@ class GlyphBuilder {
         console.log("Init GlyphBuilder");
         let sp = new SketchPad();
 
-        // Store starting coordinates
+        // Reset static variables used by tracking
         GlyphBuilder.glyph = new Array();
+        GlyphBuilder.isTracking = true;
+        GlyphBuilder.xStart = event.offsetX;    // Starting coords
+        GlyphBuilder.yStart = event.offsetY;
+        GlyphBuilder.xMax = event.offsetX;      // Max (lower-right) bounds
+        GlyphBuilder.yMax = event.offsetY;
+        GlyphBuilder.xMin = event.offsetX;      // Min (upper-left) bounds
+        GlyphBuilder.yMin = event.offsetY;
+
+        // Add starting coords to glyph array
         GlyphBuilder.glyph.push(event.offsetX);
         GlyphBuilder.glyph.push(event.offsetY);
 
@@ -455,10 +525,10 @@ class GlyphBuilder {
         sp.ctx.strokeStyle = '#333';
         
         // Draw starting point, set tracking flag to true
+        sp.ctx.beginPath();
         sp.ctx.moveTo(event.offsetX, event.offsetY);
         sp.ctx.lineTo(event.offsetX, event.offsetY);
         sp.ctx.stroke();
-        GlyphBuilder.isTracking = true;
     }
 
     /// Called when a drawing tool moves. Tracks movement
@@ -469,6 +539,12 @@ class GlyphBuilder {
         // Add deltas to glyph array
         GlyphBuilder.glyph.push(event.movementX);
         GlyphBuilder.glyph.push(event.movementY);
+
+        // Update glyph bounds
+        GlyphBuilder.xMax = Math.max(GlyphBuilder.xMax, event.offsetX);
+        GlyphBuilder.yMax = Math.max(GlyphBuilder.yMax, event.offsetY);
+        GlyphBuilder.xMin = Math.min(GlyphBuilder.xMin, event.offsetX);
+        GlyphBuilder.yMin = Math.min(GlyphBuilder.yMin, event.offsetY);
 
         // Draw segment to new point
         sp.ctx.lineTo(event.offsetX, event.offsetY);
@@ -481,15 +557,28 @@ class GlyphBuilder {
     }
 
     /// Returns a GlyphElement and clears the `#sp-canvas`
-    static getGlyphElement() {
+    static createGlyphElement() {
         // Build a string representation of the path for use in <svg>
         var pstr = "";
-        pstr += "M 0 0 ";
+
+        // Starting coordinates, leaving space for lateral movement and brush
+        // width
+        pstr += "M " + (GlyphBuilder.xStart - GlyphBuilder.xMin) + " "
+            + (GlyphBuilder.yStart - GlyphBuilder.yMin);
+        
+        // Append line deltas
         for (var i=2; i<GlyphBuilder.glyph.length-1; i+=2) {
             pstr += "l " + GlyphBuilder.glyph[i] + " " + GlyphBuilder.glyph[i+1] + " ";
         }
 
-        let glyphElem = new GlyphElement({}, pstr);
+        // Create GlyphElement using. Adjust position and size for brush width
+        let glyphElem = new GlyphElement(
+            [   GlyphBuilder.xMin,
+                GlyphBuilder.yMin,
+                GlyphBuilder.xMax-GlyphBuilder.xMin,
+                GlyphBuilder.yMax-GlyphBuilder.yMin
+            ], pstr);
+        
         return glyphElem;
     }
 
