@@ -1,0 +1,22 @@
+{
+  "name": "sn-sketchpad",
+  "version": "0.0.1",
+  "description": "A lightweight sketchpad extension for [Standard Notes](https://standardnotes.org/).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justephens/sn-sketchpad.git"
+  },
+  "author": "Justin Stephens",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/justephens/sn-sketchpad/issues"
+  },
+  "homepage": "https://github.com/justephens/sn-sketchpad#readme",
+  "dependencies": {
+    "sn-components-api": "^1.2.8"
+  }
+}

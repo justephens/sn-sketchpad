@@ -3,14 +3,68 @@
 <html>
     <head>
         <title>Sketchpad</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- Quill import -->
+        <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+        <!-- Sketchpad and Standard Notes imports -->
+        <script type="module" src="node_modules/sn-components-api/dist/dist.js"></script>
+        <script type="module" src="scripts/sketchpad.js"></script>
+        <script type="module" src="scripts/interface.js"></script>
+
+        <!-- Stylesheet imports for sketchpad and Quill -->
         <link rel="stylesheet" type="text/css" href="resources/style.css">
-        <script src="scripts/app.js"></script>
-        <script src="scripts/draw.js"></script>
+        <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     </head>
     <body>
+        <!-- Toolbar -->
         <div id="toolbar">
+            <select id="toolbox-selector">
+                <option value="text">Text</option>
+                <option value="draw">Draw</option>
+            </select>
 
+            <div id="toolbox-text">
+                <!-- Font size dropdown -->
+                <select class="ql-font">
+                </select>
+                <select class="ql-header">
+                    <option value="1"></option>
+                    <option value="2"></option>
+                    <option value="3"></option>
+                    <option selected></option>
+                </select>
+
+                <select class="ql-color"></select>
+                <select class="ql-background"></select>
+                <button type="button" class="ql-list" value="bullet"></button>
+                <button type="button" class="ql-list" value="ordered"></button>
+
+                <!-- Basic toggle stylings -->
+                <button id="tb-bold" class="ql-bold"></button>
+                <button id="tb-italic" class="ql-italic"></button>
+                <button id="tb-underline" class="ql-underline"></button>
+                <button id="tb-strike" class="ql-strike"></button>
+
+                <!-- Subscript and superscript buttons -->
+                <button id="tb-subscript" class="ql-script" value="sub"></button>
+                <button id="tb-superscript" class="ql-script" value="super"></button>
+            </div>
+
+            <div id="toolbox-draw">
+                <button id="tb-pen">Pen Tool</button>
+                <button id="tb-erase">Erase</button>
+                <input type="range" min="1" max="128" value="4">
+            </div>
+
+            <button id="util-export" class="util">Export</button>
+            <button id="util-import" class="util">Import</button>
         </div>
-        <canvas id="canvas"></canvas>
+
+        <!-- Holds contents of document -->
+        <div id="sp-contents">
+            <canvas id="sp-canvas"></canvas>
+        </div>
     </body>
 </html>

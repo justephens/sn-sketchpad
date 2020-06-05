@@ -1,6 +1,5 @@
 /* Page Style */
 :root {
-    
     --toolbar-height: 2.5em;
 }
 html {
@@ -11,24 +10,61 @@ html {
 body {
     margin: 0;
     height: 100%;
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
-}
-
-/* Canvas */
-canvas {
-    position: relative;
-    top: var(--toolbar-height);
-    background-color: #fff;
-    z-index: 0;
 }
 
 /* Toolbar */
 #toolbar {
-    position: fixed;
     width: 100%;
     height: var(--toolbar-height);
-    background-color: #eee;
-    border-bottom: 1px solid gray;
+    top: 0px;
+
+    white-space: nowrap;
+    background-color: #DDD;
+    border-bottom: 1px solid #AAA;
+    z-index: 1000000;
+}
+
+#toolbar select {
+    float: left;
+    height: 100%;
+    padding: 0px 16px 0px 16px;
+    color: #DDD;
+    background-color: #547391;
+}
+
+#toolbar div {
+    float: left;
+    width: auto;
+}
+
+#toolbar .util {
+    float: right;
+    height: 100%;
+}
+
+/* Element */
+.sp-element {
+    position: absolute;
+    background-color: #fff;
     z-index: 1;
+}
+
+/* Backdrop canvas */
+#sp-canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    background-color: #fff;
+    z-index: 0;
+}
+
+#sp-contents {
+    position: absolute;
+    top: var(--toolbar-height);
+    width: 100%;
+    height: calc(100% - var(--toolbar-height));
 }

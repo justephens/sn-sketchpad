@@ -1,5 +1,5 @@
 {
-    "identifier": "org.yourdomain.my-extension",
+    "identifier": "com.github.justephens",
     "name": "Sketchpad",
     "content_type": "SN|Component",
     "area": "editor-editor",
