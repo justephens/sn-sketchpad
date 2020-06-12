@@ -30,8 +30,13 @@ export class SketchPad {
         // Elements
         this.elements = [];         // All the sketchpad elements
 
-        // Standard Notes component interface
-        this.componentManager = new ComponentManager();
+        // Load Standard Notes component interface
+        if (typeof ComponentManager !== "undefined") {
+            this.componentManager = new ComponentManager();
+            this.usingStandardNotes = true;
+        } else {
+            this.usingStandardNotes = false;
+        }
     }
 
     /// Initializes the Sketchpad
@@ -42,9 +47,11 @@ export class SketchPad {
         this.ctx = this.canvas.getContext("2d");
 
         // Standard Notes callbacks
-        this.componentManager.streamContextItem(function (item) {
-            SketchPad.snStreamContextItem(item);
-        });
+        if (this.usingStandardNotes) {
+            this.componentManager.streamContextItem(function (item) {
+                SketchPad.snStreamContextItem(item);
+            });
+        }
 
         // Draw glyphs to canvas, transferring to a GlyphElement on mouseup
         this.canvas.onmousedown = (event) => {
@@ -99,7 +106,9 @@ export class SketchPad {
     static snSaveNote() {
         let sp = new SketchPad();
 
-        if (!sp.note) return;
+        // If Standard Notes bridge isn't loaded or a note hasn't been streamed
+        // yet, don't attempt to save.
+        if (!sp.usingStandardNotes || !sp.note) return;
         console.log("Saving Note");
 
         sp.note.content.text = SketchPad.exportNoteJSON();
@@ -262,12 +271,12 @@ export class Element {
     /// the locally defined methods, effectively forcing "override" behavior.
     bindEventHandlers() {
         let elem = document.getElementById("elem_"+this.id);
-        elem.onmouseenter = this.onmouseenter;
-        elem.onmouseleave = this.onmouseleave;
-        elem.onmousedown = this.onmousedown;
-        elem.onmousemove = this.onmousemove;
-        document.onmousemove = this.ondocmousemove;
-        elem.onmouseup = this.onmouseup;
+        elem.onmouseenter = (event) => { this.onmouseenter(event); };
+        elem.onmouseleave = (event) => { this.onmouseleave(event); };
+        elem.onmousedown = (event) => { this.onmousedown(event); };
+        elem.onmousemove = (event) => { this.onmousemove(event); };
+        document.onmousemove = () => { this.ondocmousemove(event); };
+        elem.onmouseup = (event) => { this.onmouseup(event); };
     }
 
     /// Returns the DOM Element represented by this Element object. Alias for
@@ -336,16 +345,16 @@ export class Element {
     //////////////////////
     /// Must use arrow functions for `this` to reference this Element object
     /// instead of the DOM element.
-    onmouseenter = () => {
+    onmouseenter() {
         this.uiBorderHighlight();
     };
 
-    onmouseleave = () => {
+    onmouseleave() {
         this.uiDefault();
     }
 
     // Handles mouse movement within the element (to update cursor appearance)
-    onmousemove = (event) => {
+    onmousemove(event) {
         if (event.offsetX <= 4 || this.width - event.offsetX <= 4 ||
             event.offsetY <= 4 || this.height - event.offsetY <= 4) {
             this.domElement().style.cursor = "grab";
@@ -357,7 +366,7 @@ export class Element {
     }
 
     // Handles mouse movement outside the element (to track while dragging)
-    ondocmousemove = (event) => {
+    ondocmousemove(event) {
         if (this.is_grabbed) {
             this.x += event.movementX;
             this.y += event.movementY;
@@ -365,7 +374,7 @@ export class Element {
         }
     }
 
-    onmousedown = (event) => {
+    onmousedown(event) {
         // Check if mouse click was in the unoccupied space within element
         // ("DIV"), or on child elements within the box (i.e. <p>, <span>, etc.)
         /*if (event.target.tagName == "DIV") {
@@ -381,7 +390,7 @@ export class Element {
         }
     };
 
-    onmouseup = (event) => {
+    onmouseup(event) {
         // If this element was being dragged, save note
         if (this.is_grabbed) SketchPad.snSaveNote();
         
