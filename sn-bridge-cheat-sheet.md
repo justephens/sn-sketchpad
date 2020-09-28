@@ -3,12 +3,12 @@ Component Manager is the interface that your component uses to access data.
 
 ### new ComponentManager(permissions, delegate);
 Creates a new component manager class with the given permissions. Calls delegate
-when loaded. Permissions is an array of objects, not sure what valid there are,
+when loaded. Permissions is an array of objects, not sure what values there are,
 but I have seen the following before:
 [  { name: "stream-context-item" }, ...  ]
 
 ## Methods
-All methods can be seen define [here](https://github.com/sn-extensions/extensions-manager/blob/159315b17422709f4fc15b2f4a364a023f0472f1/dist/dist.js#L3460).
+All methods can be seen defined [here](https://github.com/sn-extensions/extensions-manager/blob/159315b17422709f4fc15b2f4a364a023f0472f1/dist/dist.js#L3460).
 Here are some useful ones:
 
 ### componentManager.setComponentDataValueForKey(key, value);
