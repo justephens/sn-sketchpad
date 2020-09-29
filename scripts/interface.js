@@ -20,7 +20,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
     tb_selector.onchange = function(event) {
         tb_text.style.display = (event.target.value == "text") ? "block" : "none";
         tb_draw.style.display = (event.target.value == "draw") ? "block" : "none";
-        Interface.toolbox = event.target.value;
+
+        // Update the Interface members
+        Interface.active_toolbox = event.target.value;
+        Interface.active_tool = null;
     }
 
     // Draw toolbox buttons
