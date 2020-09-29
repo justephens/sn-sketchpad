@@ -29,9 +29,15 @@ export class SketchPad {
 
         // Elements
         this.elements = [];         // All the sketchpad elements
+        this.selected_elems = [];   // IDs of currently-selected elements
 
-        // Standard Notes component interface
-        this.componentManager = new ComponentManager();
+        // Load Standard Notes component interface
+        if (typeof ComponentManager !== "undefined") {
+            this.componentManager = new ComponentManager();
+            this.usingStandardNotes = true;
+        } else {
+            this.usingStandardNotes = false;
+        }
     }
 
     /// Initializes the Sketchpad
@@ -42,9 +48,11 @@ export class SketchPad {
         this.ctx = this.canvas.getContext("2d");
 
         // Standard Notes callbacks
-        this.componentManager.streamContextItem(function (item) {
-            SketchPad.snStreamContextItem(item);
-        });
+        if (this.usingStandardNotes) {
+            this.componentManager.streamContextItem(function (item) {
+                SketchPad.snStreamContextItem(item);
+            });
+        }
 
         // Draw glyphs to canvas, transferring to a GlyphElement on mouseup
         this.canvas.onmousedown = (event) => {
@@ -60,7 +68,7 @@ export class SketchPad {
             }
         }
         this.canvas.onmouseup = (event) => {
-            if (Interface.active_tool == "pen") {
+            if (Interface.active_tool == "pen" && GlyphBuilder.isTracking) {
                 // Move canvas back down
                 this.canvas.style.zIndex = 0;
 
@@ -99,7 +107,9 @@ export class SketchPad {
     static snSaveNote() {
         let sp = new SketchPad();
 
-        if (!sp.note) return;
+        // If Standard Notes bridge isn't loaded or a note hasn't been streamed
+        // yet, don't attempt to save.
+        if (!sp.usingStandardNotes || !sp.note) return;
         console.log("Saving Note");
 
         sp.note.content.text = SketchPad.exportNoteJSON();
@@ -109,7 +119,7 @@ export class SketchPad {
     }
 
 
-    /// Adds the given element to the given group. Returns the element ID.
+    /// Adds the given element to the Sketchpad
     static addElement(elem) {
         let sp = new SketchPad();
         sp.elements.push(elem);
@@ -117,19 +127,20 @@ export class SketchPad {
 
     /// Removes the given element
     /// TODO: Binary search
-    static removeElement(elemId) {
+    static removeElement(elemID) {
         let sp = new SketchPad();
 
         // Find element, remove it
         for (let i = 0; i < sp.elements.length; i++) {
-            if (sp.elements[i].id == elemId) {
+            if (sp.elements[i].id == elemID) {
                 sp.elements.splice(i, 1);
                 break;
             }
         }
     }
 
-    /// Returns the element belonging to the given group with the given ID
+    /// Returns the element with the given ID
+    /// TODO: Binary search
     static getElement(elemID) {
         let sp = new SketchPad();
 
@@ -150,6 +161,39 @@ export class SketchPad {
         }
         sp.elements = [];
     }
+
+
+    /// Marks the element with the given ID as selected
+    static selectElement(elemID) {
+        let sp = new SketchPad();
+        sp.selected_elems.push(elemID);
+        sp.getElement(elemID).onSelect();
+    }
+    
+    /// Marks the element with the given ID as unselected
+    static deselectElement(elemID) {
+        let sp = new SketchPad();
+
+        for (let i = 0; i < sp.selected_elems.length; i++) {
+            if (sp.selected_elems[i] == elemID) {
+                sp.elements.splice(i, 1);
+                sp.getElement(elemID).onDeselect();
+                break;
+            }
+        }
+    }
+
+    /// Clears all selected elements
+    static clearSelected() {
+        let sp = new SketchPad();
+
+        for (let i = 0; i < sp.selected_elems.length; i++) {
+            sp.selected_elems[i].onDeselect();
+        }
+        sp.selected_elems = [];
+    }
+
+
 
 
     /// Returns a JSON string containing all the elements in the SketchPad.
@@ -201,7 +245,7 @@ export class Element {
 
     constructor(box, elem_type="div") {
 
-        /// Member variables
+        /// Permanent member variables
         this.id = Element.id_counter++;
         this.x = 24;
         this.y = 8;
@@ -224,6 +268,7 @@ export class Element {
         let elem = document.createElement(elem_type);
         elem.id = "elem_" + this.id;
         elem.className = "sp-element";
+        elem.style.zIndex = this.id+1;
         document.getElementById("sp-contents").prepend(elem);
 
         // Update the position and bind event handler methods to triggers
@@ -262,12 +307,15 @@ export class Element {
     /// the locally defined methods, effectively forcing "override" behavior.
     bindEventHandlers() {
         let elem = document.getElementById("elem_"+this.id);
-        elem.onmouseenter = this.onmouseenter;
-        elem.onmouseleave = this.onmouseleave;
-        elem.onmousedown = this.onmousedown;
-        elem.onmousemove = this.onmousemove;
-        document.onmousemove = this.ondocmousemove;
-        elem.onmouseup = this.onmouseup;
+        elem.onmouseenter = (event) => { this.onmouseenter(event); };
+        elem.onmouseleave = (event) => { this.onmouseleave(event); };
+        elem.onmousedown = (event) => { this.onmousedown(event); };
+        elem.onmousemove = (event) => { this.onmousemove(event); };
+        elem.onmouseup = (event) => { this.onmouseup(event); };
+
+        document.onmousedown = () => { this.ondocmousedown(event); };
+        document.onmousemove = () => { this.ondocmousemove(event); };
+        document.onmouseup = () => { this.ondocmouseup(event); };
     }
 
     /// Returns the DOM Element represented by this Element object. Alias for
@@ -336,16 +384,16 @@ export class Element {
     //////////////////////
     /// Must use arrow functions for `this` to reference this Element object
     /// instead of the DOM element.
-    onmouseenter = () => {
+    onmouseenter() {
         this.uiBorderHighlight();
     };
 
-    onmouseleave = () => {
+    onmouseleave() {
         this.uiDefault();
     }
 
     // Handles mouse movement within the element (to update cursor appearance)
-    onmousemove = (event) => {
+    onmousemove(event) {
         if (event.offsetX <= 4 || this.width - event.offsetX <= 4 ||
             event.offsetY <= 4 || this.height - event.offsetY <= 4) {
             this.domElement().style.cursor = "grab";
@@ -356,16 +404,7 @@ export class Element {
         }
     }
 
-    // Handles mouse movement outside the element (to track while dragging)
-    ondocmousemove = (event) => {
-        if (this.is_grabbed) {
-            this.x += event.movementX;
-            this.y += event.movementY;
-            this.updateDomStyle();
-        }
-    }
-
-    onmousedown = (event) => {
+    onmousedown(event) {
         // Check if mouse click was in the unoccupied space within element
         // ("DIV"), or on child elements within the box (i.e. <p>, <span>, etc.)
         /*if (event.target.tagName == "DIV") {
@@ -374,18 +413,41 @@ export class Element {
             event.stopPropagation();
         }*/
 
+        console.log("Mousedown");
+
         this.uiSelected();
 
         if (this.cursor_grab) {
             this.is_grabbed = true;
+            this.grab_x = this.x;
+            this.grab_y = this.y;
+            this.grab_curs_x = event.x;
+            this.grab_curs_y = event.y;
         }
     };
 
-    onmouseup = (event) => {
+    onmouseup(event) {}
+
+    ondocmousedown(event) {}
+
+    ondocmousemove(event) {
+        console.log("Move " + this.id);
+        if (this.is_grabbed) {
+            this.x = this.grab_x + (event.x - this.grab_curs_x);
+            this.y = this.grab_y + (event.y - this.grab_curs_y);
+            this.updateDomStyle();
+        }
+    }
+
+    ondocmouseup(event) {
         // If this element was being dragged, save note
         if (this.is_grabbed) SketchPad.snSaveNote();
         
         this.is_grabbed = false;
+        delete this.grab_x;
+        delete this.grab_y;
+        delete this.grab_curs_x;
+        delete this.grab_curs_y;
     }
 }
 
@@ -581,5 +643,4 @@ class GlyphBuilder {
         
         return glyphElem;
     }
-
 }
