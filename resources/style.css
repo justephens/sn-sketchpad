@@ -14,11 +14,12 @@ body {
     overflow-x: hidden;
 }
 
-/* Toolbar */
+/* Toolbar - General */
 #toolbar {
     width: 100%;
     height: var(--toolbar-height);
     top: 0px;
+    position: relative;
 
     white-space: nowrap;
     background-color: #DDD;
@@ -42,6 +43,33 @@ body {
 #toolbar .util {
     float: right;
     height: 100%;
+}
+
+/* Toolbar - Draw toolbox */
+#toolbox-draw button {
+    position: relative;
+    float: left;
+    height: 100%;
+}
+
+#toolbox-draw input[type=range] {
+    position: relative;
+    float: left;
+}
+
+#toolbox-draw #tb-draw-color-indicator {
+    position: relative;
+    float: left;
+    margin-top: calc(var(--toolbar-height) * .2);
+    height: calc(var(--toolbar-height) * .6);
+    width: calc(var(--toolbar-height) * .6);
+    border-radius: 50%;
+    background-color: #333;
+    transition: all .25s ease;
+}
+
+#toolbox-draw #tb-draw-color-indicator:hover {
+    transform: scale(1.25, 1.25);
 }
 
 /* Element */
