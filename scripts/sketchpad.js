@@ -98,15 +98,17 @@ export class SketchPad {
                 // Create GlyphElement from tracked path, clear canvas
                 GlyphBuilder.endTrackGlyph(event);
                 GlyphBuilder.optimizeGlyph();
-                let g = GlyphBuilder.createGlyphElement();
-                this.ctx.clearRect(g.x, g.y, g.w, g.h);
+                GlyphBuilder.createGlyphElement();
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
                 SketchPad.snSaveNote();
             }
         }
 
         // Create starting TextElement
-        let e = new TextElement([32, 32, 400, 200], "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+        let e = new TextElement([32, 32, 400, 200]);
+        TextElement.currentQuill.setText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
     }
 
 
@@ -130,6 +132,8 @@ export class SketchPad {
     /// Call this to save the note
     static snSaveNote() {
         let sp = new SketchPad();
+        
+        console.log(SketchPad.exportNoteJSON());
 
         // If Standard Notes bridge isn't loaded or a note hasn't been streamed
         // yet, don't attempt to save.
@@ -477,7 +481,7 @@ export class Element {
 export class TextElement extends Element {
     static currentQuill;
 
-    constructor(box, text="") {
+    constructor(box, contents="") {
         // Create div for text
         super(box);
         this.bindEventHandlers();
@@ -488,7 +492,7 @@ export class TextElement extends Element {
             },
             theme: 'snow'
         });
-        this.quill.setText(text);
+        this.quill.setContents(contents);
         this.quill.on('text-change', SketchPad.snSaveNote);
         this.activateQuill();
     }

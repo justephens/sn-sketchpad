@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     // Utility Functions
     document.getElementById("util-export").onclick = function() {
-        var json = SketchPad.exportNoteJSON()
+        var json = SketchPad.exportNoteJSON();
 
         var blob = new Blob([json], {type: 'txt'});
         if(window.navigator.msSaveBlob) {
@@ -50,7 +50,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
         }
     }
     document.getElementById("util-import").onclick = function() {
-        
+        let text_field = document.getElementById("util-import-text");
+        SketchPad.importNoteJSON(text_field.value);
     }
 
     // Bind toolbar buttons to TextElement methods
