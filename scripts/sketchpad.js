@@ -68,11 +68,11 @@ export class SketchPad {
             // Notify all Elements
             for (let i = 0; i < this.elements.length; i++)
                 this.elements[i].ondocmousedown(event);
-
-            if (Interface.active_tool == "pen") {
-                // Move canvas to top to allow drawing anywhere
-                this.canvas.style.zIndex = 999999;
-                GlyphBuilder.beginTrackGlyph(event);
+            
+            if (event.pageY > document.getElementById("toolbar").clientHeight) {
+                if (Interface.active_tool == "pen") {
+                    GlyphBuilder.beginTrackGlyph(event);
+                }
             }
         }
         document.onmousemove = (event) => {
@@ -80,8 +80,10 @@ export class SketchPad {
             for (let i = 0; i < this.elements.length; i++)
                 this.elements[i].ondocmousemove(event);
             
-            if (Interface.active_tool == "pen") {
-                GlyphBuilder.trackGlyph(event);
+            if (event.pageY > document.getElementById("toolbar").clientHeight) {
+                if (Interface.active_tool == "pen") {
+                    GlyphBuilder.trackGlyph(event);
+                }
             }
         }
         document.onmouseup = (event) => {
@@ -94,9 +96,10 @@ export class SketchPad {
                 this.canvas.style.zIndex = 0;
 
                 // Create GlyphElement from tracked path, clear canvas
-                GlyphBuilder.endTrackGlyph();
-                GlyphBuilder.createGlyphElement();
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                GlyphBuilder.endTrackGlyph(event);
+                GlyphBuilder.optimizeGlyph();
+                let g = GlyphBuilder.createGlyphElement();
+                this.ctx.clearRect(g.x, g.y, g.w, g.h);
 
                 SketchPad.snSaveNote();
             }
@@ -410,13 +413,16 @@ export class Element {
 
     // Handles mouse movement within the element (to update cursor appearance)
     onmousemove(event) {
-        if (event.offsetX <= 4 || this.width - event.offsetX <= 4 ||
-            event.offsetY <= 4 || this.height - event.offsetY <= 4) {
-            this.domElement().style.cursor = "grab";
-            this.cursor_grab = true;
-        } else {
-            this.domElement().style.cursor = "auto";
-            this.cursor_grab = false;
+        // Don't move elements if a tool (i.e. pen/erase) is active
+        if (Interface.active_tool == null) {
+            if (event.offsetX <= 4 || this.width - event.offsetX <= 4 ||
+                event.offsetY <= 4 || this.height - event.offsetY <= 4) {
+                this.domElement().style.cursor = "grab";
+                this.cursor_grab = true;
+            } else {
+                this.domElement().style.cursor = "auto";
+                this.cursor_grab = false;
+            }
         }
     }
 
@@ -553,8 +559,13 @@ export class GlyphElement extends Element {
         // Create a <path> element
         let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", pathStr);
-        path.style.stroke = "#333";
-        path.style.fill = "none"
+
+        // Style element
+        this.style = style;
+        path.style.strokeLinecap = "round";
+        path.style.stroke = style["color"];
+        path.style.strokeWidth = style["size"];
+        path.style.fill = style["fill"];
 
         // Add <path> to <svg>, then <svg> to <div>
         svg.append(path);
@@ -565,63 +576,89 @@ export class GlyphElement extends Element {
     }
 
     static importObject(obj) {
-        return new GlyphElement(obj["box"], obj["svg-path"]);
+        return new GlyphElement(obj["box"], obj["svg-path"], obj["style"]);
     }
 
     exportObject() {
         let obj = super.exportObject();
         obj["svg-path"] = this.domElement().children[0].children[0].getAttribute("d");
+        obj["style"] = this.style;
         return obj;
     }
 
+    // Style overrides
+    uiBorderHighlight() { }
+    
+    uiSelected() {
+        super.uiSelected();
+        let elem = this.domElement();
+
+        elem.style.backgroundColor = "#ccc9";
+    }
+
+    uiDefault() {
+        super.uiDefault();
+        let elem = this.domElement();
+
+        elem.style.backgroundColor = "#fff0";
+    }
 
     //////////////////////
     /// Event Handlers ///
     //////////////////////
-    onmouseenter(event) {}
-
     onmousemove(event) {
         super.onmousemove(event);
         let sp = new SketchPad();
 
-        // If the mouse collides with this glyph while the erase tool is active,
-        // then it should be destroyed ('erased')
-        if (Element.mouse_down && Interface.active_tool == "erase" &&
-            sp.ctx.isPointInStroke(this.path2d, event.offsetX, event.offsetY))
-            this.destroy();
+        if (Element.mouse_down && Interface.active_tool == "erase") {
+
+            // Set draw size to the width of this glyph + the width of the
+            // eraser tool, then check if the mouse is located in that path.
+            sp.ctx.lineWidth = this.style["size"] + Interface.GetDrawStyle()["size"];
+
+            if (sp.ctx.isPointInStroke(this.path2d, event.offsetX, event.offsetY))
+                this.destroy();
+        }
     }
 }
 
 /// A utility class used to track the movement of the pencil tool when a Glyph
 /// is initially being drawn, drawing the movement to `#sp-canvas`. A 
 /// GlyphElement can be retrieved once drawing is complete.
+/// Also provides functionality for rendering the effect circle while erasing.
 class GlyphBuilder {
+    /// Flag to keep track of whether GlyphBuilder is actively tracking a glyph
+    /// or not
     static isTracking = false;
 
     /// Called whenever a drawing tool is "placed" onto the Sketchpad
     static beginTrackGlyph(event) {
-        console.log("Init GlyphBuilder");
         let sp = new SketchPad();
 
         // Reset static variables used by tracking
         GlyphBuilder.toolbar_h = document.getElementById("toolbar").clientHeight;
         GlyphBuilder.glyph = new Array();
         GlyphBuilder.isTracking = true;
-        GlyphBuilder.xStart = event.pageX;          // Starting coords
+
+        // Get draw style from Interface
+        GlyphBuilder.style = Interface.GetDrawStyle();
+        sp.ctx.lineCap = "round";
+        sp.ctx.lineWidth = GlyphBuilder.style["size"];
+        sp.ctx.strokeStyle = GlyphBuilder.style["color"];
+
+        // Starting coordinates & path bounds
+        GlyphBuilder.xStart = event.pageX;
         GlyphBuilder.yStart = event.pageY-GlyphBuilder.toolbar_h;
-        GlyphBuilder.xMax = GlyphBuilder.xStart;    // Max (lower-right) bounds
-        GlyphBuilder.yMax = GlyphBuilder.yStart;
-        GlyphBuilder.xMin = GlyphBuilder.xStart;    // Min (upper-left) bounds
-        GlyphBuilder.yMin = GlyphBuilder.yStart;
+        GlyphBuilder.xPrev = GlyphBuilder.xStart;
+        GlyphBuilder.yPrev = GlyphBuilder.yStart;
+        GlyphBuilder.xMax = GlyphBuilder.xStart + GlyphBuilder.style["size"]/2;
+        GlyphBuilder.yMax = GlyphBuilder.yStart + GlyphBuilder.style["size"]/2;
+        GlyphBuilder.xMin = GlyphBuilder.xStart - GlyphBuilder.style["size"]/2;
+        GlyphBuilder.yMin = GlyphBuilder.yStart - GlyphBuilder.style["size"]/2;
 
         // Add starting coords to glyph array
         GlyphBuilder.glyph.push(event.pageX);
         GlyphBuilder.glyph.push(event.pageY-GlyphBuilder.toolbar_h);
-
-        // Set draw style
-        sp.ctx.lineWidth = 10;
-        sp.ctx.lineCap = "round";
-        sp.ctx.strokeStyle = '#333';
         
         // Draw starting point, set tracking flag to true
         sp.ctx.beginPath();
@@ -630,33 +667,50 @@ class GlyphBuilder {
         sp.ctx.stroke();
     }
 
-    /// Called when a drawing tool moves. Tracks movement
+    /// Called when a drawing tool moves.
     static trackGlyph(event) {
         if (!GlyphBuilder.isTracking) return;
         let sp = new SketchPad();
 
-        // Add deltas to glyph array
-        GlyphBuilder.glyph.push(event.movementX);
-        GlyphBuilder.glyph.push(event.movementY);
-
-        // Update glyph bounds
-        GlyphBuilder.xMax = Math.max(GlyphBuilder.xMax, event.pageX);
-        GlyphBuilder.yMax = Math.max(GlyphBuilder.yMax, event.pageY-GlyphBuilder.toolbar_h);
-        GlyphBuilder.xMin = Math.min(GlyphBuilder.xMin, event.pageX);
-        GlyphBuilder.yMin = Math.min(GlyphBuilder.yMin, event.pageY-GlyphBuilder.toolbar_h);
+        // Get current position
+        let canvasX = event.pageX;
+        let canvasY = event.pageY - GlyphBuilder.toolbar_h;
 
         // Draw segment to new point
-        sp.ctx.lineTo(event.pageX, event.pageY-GlyphBuilder.toolbar_h);
+        sp.ctx.lineTo(canvasX, canvasY);
         sp.ctx.stroke();
+
+        // If we haven't passed the required threshold and the force_add flag
+        // isn't set, return and don't add a vertex to the glyph
+        let dx = canvasX - GlyphBuilder.xPrev;
+        let dy = canvasY - GlyphBuilder.yPrev;
+
+        // Add deltas to glyph array
+        GlyphBuilder.glyph.push(canvasX - GlyphBuilder.xPrev);
+        GlyphBuilder.glyph.push(canvasY - GlyphBuilder.yPrev);
+
+        // Update glyph bounds
+        GlyphBuilder.xMax = Math.max(GlyphBuilder.xMax, canvasX + GlyphBuilder.style["size"]/2);
+        GlyphBuilder.yMax = Math.max(GlyphBuilder.yMax, canvasY + GlyphBuilder.style["size"]/2);
+        GlyphBuilder.xMin = Math.min(GlyphBuilder.xMin, canvasX - GlyphBuilder.style["size"]/2);
+        GlyphBuilder.yMin = Math.min(GlyphBuilder.yMin, canvasY - GlyphBuilder.style["size"]/2);
+
+
+        // Set current position as the new "previous" position
+        GlyphBuilder.xPrev = canvasX;
+        GlyphBuilder.yPrev = canvasY;
     }
 
     /// Called whenever a drawing tool is "lifted" from the Sketchpad
-    static endTrackGlyph() {
+    static endTrackGlyph(event) {
+        this.trackGlyph(event);
         GlyphBuilder.isTracking = false;
     }
 
     /// Returns a GlyphElement and clears the `#sp-canvas`
     static createGlyphElement() {
+        if (GlyphBuilder.isTracking) return false;
+        
         // Build a string representation of the path for use in <svg>
         var pstr = "";
 
@@ -670,14 +724,19 @@ class GlyphBuilder {
             pstr += "l " + GlyphBuilder.glyph[i] + " " + GlyphBuilder.glyph[i+1] + " ";
         }
 
-        // Create GlyphElement using. Adjust position and size for brush width
+        // Create GlyphElement
         let glyphElem = new GlyphElement(
             [   GlyphBuilder.xMin,
                 GlyphBuilder.yMin,
                 GlyphBuilder.xMax-GlyphBuilder.xMin,
                 GlyphBuilder.yMax-GlyphBuilder.yMin
-            ], pstr);
+            ], pstr, GlyphBuilder.style);
         
         return glyphElem;
+    }
+
+    /// Optimizes the topology of the glyph.
+    static optimizeGlyph() {
+        if (GlyphBuilder.isTracking) return false;
     }
 }

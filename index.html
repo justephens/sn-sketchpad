@@ -42,20 +42,21 @@
                 <button type="button" class="ql-list" value="ordered"></button>
 
                 <!-- Basic toggle stylings -->
-                <button id="tb-bold" class="ql-bold"></button>
-                <button id="tb-italic" class="ql-italic"></button>
-                <button id="tb-underline" class="ql-underline"></button>
-                <button id="tb-strike" class="ql-strike"></button>
+                <button id="tb-text-bold" class="ql-bold"></button>
+                <button id="tb-text-italic" class="ql-italic"></button>
+                <button id="tb-text-underline" class="ql-underline"></button>
+                <button id="tb-text-strike" class="ql-strike"></button>
 
                 <!-- Subscript and superscript buttons -->
-                <button id="tb-subscript" class="ql-script" value="sub"></button>
-                <button id="tb-superscript" class="ql-script" value="super"></button>
+                <button id="tb-text-subscript" class="ql-script" value="sub"></button>
+                <button id="tb-text-superscript" class="ql-script" value="super"></button>
             </div>
 
             <div id="toolbox-draw">
-                <button id="tb-pen">Pen Tool</button>
-                <button id="tb-erase">Erase</button>
-                <input type="range" min="1" max="128" value="4">
+                <button id="tb-draw-pen">Pen Tool</button>
+                <button id="tb-draw-erase">Erase</button>
+                <input id="tb-draw-size" type="range" min="1" max="24" step="1" value="4">
+                <div id="tb-draw-color-indicator"></div>
             </div>
 
             <button id="util-export" class="util">Export</button>

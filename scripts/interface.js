@@ -27,10 +27,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
     }
 
     // Draw toolbox buttons
-    document.getElementById("tb-pen").onclick = function(event) {
+    document.getElementById("tb-draw-pen").onclick = function(event) {
         Interface.active_tool = "pen";
     }
-    document.getElementById("tb-erase").onclick = function(event) {
+    document.getElementById("tb-draw-erase").onclick = function(event) {
         Interface.active_tool = "erase";
     }
 
@@ -61,7 +61,21 @@ document.addEventListener("DOMContentLoaded", function(event) {
 /// interact with the user interface.
 export class Interface {
 
+    /// Holds which of the toolboxes is active in the toolbar
+    /// Valid values: ["text", "draw"]
     static active_toolbox = "text";
+
+    /// Holds the active tool in use by the user. Null if no tool is selected.
+    /// Valid values: [null, "pen", "erase"]
     static active_tool = null;
+
+    /// Return an object holding the style attributes fetched from the interface
+    static GetDrawStyle() {
+        return {
+            "color": "#333",
+            "size": Number(document.getElementById("tb-draw-size").value),
+            "fill": "none",
+        };
+    }
 
 }
